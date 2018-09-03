@@ -2,7 +2,7 @@
 # Cookbook Name:: openldap
 # Recipe:: auth
 #
-# Copyright 2008-2009, Opscode, Inc.
+# Copyright 2008-2015, Chef Software, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,56 +17,53 @@
 # limitations under the License.
 #
 
-include_recipe "openldap::client"
-include_recipe "openssh"
-include_recipe "nscd"
+include_recipe 'openldap::client'
+include_recipe 'openssh'
+include_recipe 'nscd'
 
-package "libnss-ldap" do
-  action :upgrade
-end
-
-package "libpam-ldap" do
-  action :upgrade
-end
-
-template "/etc/ldap.conf" do
-  source "ldap.conf.erb"
-  mode 00644
-  owner "root"
-  group "root"
-  notifies :restart, "service[ssh]", :delayed
-end
-
-template "#{node['openldap']['dir']}/ldap.conf" do
-  source "ldap-ldap.conf.erb"
-  mode 00644
-  owner "root"
-  group "root"
-end
-
-cookbook_file "/etc/nsswitch.conf" do
-  source "nsswitch.conf"
-  mode 00644
-  owner "root"
-  group "root"
-  notifies :run, "execute[nscd-clear-passwd]", :immediately
-  notifies :run, "execute[nscd-clear-group]", :immediately
-  notifies :restart, "service[nscd]", :immediately
-end
-
-%w{ account auth password session }.each do |pam|
-  cookbook_file "/etc/pam.d/common-#{pam}" do
-    source "common-#{pam}"
-    mode 00644
-    owner "root"
-    group "root"
-    notifies :restart, "service[ssh]", :delayed
+node['openldap']['packages']['auth_pkgs'].each do |pkg|
+  package pkg do
+    action node['openldap']['package_install_action']
   end
 end
 
-template "/etc/security/login_access.conf" do
-  source "login_access.conf.erb"
-  mode 00644
-  owner "root"
-  group "root"
+template '/etc/ldap.conf' do
+  source 'ldap.conf.erb'
+  mode '0644'
+  owner 'root'
+  group 'root'
+end
+
+template "#{node['openldap']['dir']}/ldap.conf" do
+  source 'ldap-ldap.conf.erb'
+  mode '0644'
+  owner 'root'
+  group 'root'
+end
+
+cookbook_file '/etc/nsswitch.conf' do
+  source 'nsswitch.conf'
+  mode '0644'
+  owner 'root'
+  group 'root'
+  notifies :run, 'execute[nscd-clear-passwd]', :immediately
+  notifies :run, 'execute[nscd-clear-group]', :immediately
+  notifies :restart, 'service[nscd]', :immediately
+end
+
+%w(account auth password session).each do |pam|
+  cookbook_file "/etc/pam.d/common-#{pam}" do
+    source "common-#{pam}"
+    mode '0644'
+    owner 'root'
+    group 'root'
+    notifies :restart, 'service[ssh]', :delayed
+  end
+end
+
+template '/etc/security/login_access.conf' do
+  source 'login_access.conf.erb'
+  mode '0644'
+  owner 'root'
+  group 'root'
 end

@@ -2,7 +2,7 @@
 # Cookbook Name:: openldap
 # Recipe:: slave
 #
-# Copyright 2012, Opscode, Inc.
+# Copyright 2012-2015, Chef Software, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,9 +24,8 @@ if Chef::Config[:solo]
 else
   ::Chef::Recipe.send(:include, Opscode::OpenSSL::Password)
   node.default['openldap']['slapd_replpw'] = secure_password
-  node.default['openldap']['slapd_master'] = search(:nodes, 'openldap_slapd_type:master').map {|n| n['openldap']['server']}.first
+  node.default['openldap']['slapd_master'] = search(:node, 'openldap_slapd_type:master').map { |n| n['openldap']['server'] }.first
   node.save
 end
 
-include_recipe "openldap::server"
-
+include_recipe 'openldap::server'

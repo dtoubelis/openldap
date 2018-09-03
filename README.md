@@ -6,49 +6,56 @@ Configures a server to be an OpenLDAP master, OpenLDAP replication slave, or Ope
 Requirements
 ------------
 ### Platform
-Ubuntu 10.04 was primarily used in testing this cookbook. Other Ubuntu versions and Debian may work. Red Hat and derivatives are not fully supported, but we take patches.
+- Ubuntu 10.04+
+- Debian
+- FreeBSD 10
+- RHEL and derivitives
+
+### Chef
+Chef version 0.10.10+ (with Ohai 0.6.12+) is required.
 
 ### Cookbooks
 - openssh
 - nscd
 - openssl (for slave recipe)
+- freebsd
 
 
 Attributes
 ----------
-Be aware of the attributes used by this cookbook and adjust the defaults for your environment where required, in `attributes/openldap.rb`.
+Be aware of the attributes used by this cookbook and adjust the defaults for your environment where required, in `attributes/default.rb`.
+
+### Overall install attributes
+- `openldap['package_install_action']` - The action to be taken for all packages in the recipes. Defaults to :install, but can also be set to :upgrade to upgrade all packages referenced in the recipes.
 
 ### Client node attributes
 
-- `openldap[:basedn]` - basedn
-- `openldap[:server]` - the LDAP server fully qualified domain name, default `'ldap'.node[:domain]`.
-- `openldap[:tls_enabled]` - specifies whether TLS will be used at all. Setting this to fals will result in your credentials being sent in clear-text.
-- `openldap[:tls_checkpeer]` - specifies whether the client should verify the server's TLS certificate. Highly recommended to set tls_checkpeer to true for production uses in order to avoid man-in-the-middle attacks. Defaults to false for testing and backwards compatibility.
-- `openldap[:pam_password]` - specifies the password change protocol to use. Defaults to md5.
+- `openldap['server_uri']` - the URI of the LDAP server
+- `openldap['basedn']` - basedn
+- `openldap['cn']` - admin
+- `openldap['server']` - the LDAP server fully qualified domain name, default `'ldap'.node['domain']`.
+- `openldap['tls_enabled']` - specifies whether TLS will be used at all. Setting this to fals will result in your credentials being sent in clear-text.
+- `openldap['tls_checkpeer']` - specifies whether the client should verify the server's TLS certificate. Highly recommended to set tls_checkpeer to true for production uses in order to avoid man-in-the-middle attacks. Defaults to false for testing and backwards compatibility.
+- `openldap['pam_password']` - specifies the password change protocol to use. Defaults to md5.
 
 ### Server node attributes
 
-- `openldap[:slapd_type]` - master | slave
-- `openldap[:slapd_rid]` - unique integer ID, required if type is slave.
-- `openldap[:slapd_master]` - hostname of slapd master, attempts to search for slapd_type master.
-- `openldap[:manage_ssl]` - Whether or not this cookbook manages your SSL certificates.
+- `openldap['schemas']` - Array of ldap schema file names to load
+- `openldap['modules']` - Array of slapd modules names to load
+- `openldap['slapd_type']` - master | slave
+- `openldap['slapd_rid']` - unique integer ID, required if type is slave.
+- `openldap['slapd_master']` - hostname of slapd master, attempts to search for slapd_type master.
+- `openldap['database']` - Preferred database backend, defaults to HDB or MDB (for FreeBSD).
+- `openldap['manage_ssl']` - Whether or not this cookbook manages your SSL certificates.
    If set to `true`, this cookbook will expect your SSL certificates to be in files/default/ssl and will configure slapd appropriately.
-   If set to `false`, you will need to provide your SSL certificates **prior** to this recipe being run. Be sure to set `openldap[:ssl_cert]` and `openldap[:ssl_key]` appropriately.
-- `openldap[:ssl_cert]` - The full path to your SSL certificate.
-- `openldap[:ssl_key]` - The full path to your SSL key.
-- `openldap[:cacert]` - Your certificate authority's certificate (or intermediate authorities), if needed.
-
-### Apache configuration attributes
-
-Attributes useful for Apache authentication with LDAP.
-
-COOK-128 - set automatically based on openldap[:server] and openldap[:basedn] if those attributes are set. openldap[:auth_bindpw] remains nil by default as a default value is not easily predicted.
-
-- `openldap[:auth_type]` - determine whether binddn and bindpw are required (openldap no, ad yes)
-- `openldap[:auth_url]` - AuthLDAPURL
-- `openldap[:auth_binddn]` - AuthLDAPBindDN
-- `openldap[:auth_bindpw]` - AuthLDAPBindPassword
-
+   If set to `false`, you will need to provide your SSL certificates **prior** to this recipe being run. Be sure to set `openldap['ssl_cert']` and `openldap['ssl_key']` appropriately.
+- `openldap['ssl_cert']` - The full path to your SSL certificate.
+- `openldap['ssl_key']` - The full path to your SSL key.
+- `openldap['ssl_cert_source_cookbook']` - The cookbook to find the ssl cert.  Defaults to this cookbook
+- `openldap['ssl_cert_source_path']` - The path in the cookbook to find the ssl cert file.
+- `openldap['ssl_key_source_cookbook']` - The cookbook to find the ssl key.  Defaults to this cookbook
+- `openldap['ssl_key_source_path']` - The path in the cookbook to find the ssl key file.
+- `openldap['cafile']` - Your certificate authority's certificate (or intermediate authorities), if needed.
 
 Recipes
 -------
@@ -58,7 +65,7 @@ Sets up the system for using openldap for user authentication.
 
 ### default
 
-Empty recipe, you may want client.
+Empty placeholder recipe.
 
 ### client
 
@@ -134,9 +141,9 @@ Or in your wrapper cookbook rewind with ubuntu related fix:
 
 Certificates created by the Rakefile are self signed. If you have a purchased CA, that can be used.
 
-We provide two methods of managing SSL certificates, based off of `openldap[:manage_ssl]`.
+We provide two methods of managing SSL certificates, based off of `openldap['manage_ssl']`.
 
-If `openldap[:manage_ssl]` is `true`, then this cookbook manage your certificates itself, and will expect all certificates, intermediate certificates, and keys to be in the same file as defined in `openldap[:ssl_cert]`.
+If `openldap['manage_ssl']` is `true`, then this cookbook manage your certificates itself, and will expect all certificates, intermediate certificates, and keys to be in the same file as defined in `openldap['ssl_cert']`.
 
 Use https://github.com/atomic-penguin/cookbook-certificate cookbook for advanced certificate deployment or use wrapper cookbook with following code to source ssl files from the wrapper cookbook folder structure:
 
@@ -148,15 +155,15 @@ Use https://github.com/atomic-penguin/cookbook-certificate cookbook for advanced
 
 Be sure to update the certificate locations in the templates as required. We suggest copying this cookbook to the site-cookbooks for such modifications, so you can still pull from our master for updates, and then merge your changes in.
 
-However, if `openldap[:manage_ssl]` is `false`, then you will need to place the SSL certificates on the client file system **prior** to this cookbook being run. This provides you the flexibility to provide the same set of SSL certificates for multiple uses as well as in one place across your environment, but you will need to manage them.
-- Set `openldap[:ssl-cert]`, `openldap[:ssl_key]`, and `openldap[:cacert]` appropriately.
+However, if `openldap['manage_ssl']` is `false`, then you will need to place the SSL certificates on the client file system **prior** to this cookbook being run. This provides you the flexibility to provide the same set of SSL certificates for multiple uses as well as in one place across your environment, but you will need to manage them.
+- Set `openldap['ssl_cert']`, `openldap['ssl_key']`, and `openldap['cafile']` appropriately.
 - Ensure that that user openldap can access these files. Watch out for apparmor and SELinux if you are placing your SSL certificates in a non-default location.
 
 ### New Directory
 If installing for the first time, the initial directory needs to be created. Create an ldif file, and start populating the directory.
 
 ### Passwords
-Set the password, openldap[:rootpw] for the rootdn in the node's attributes. This should be a password hash generated from slappasswd. The default slappasswd command on Ubuntu 8.10 and Mac OS X 10.5 will generate a SHA1 hash:
+Set the password, openldap['rootpw'] for the rootdn in the node's attributes. This should be a password hash generated from slappasswd. The default slappasswd command on Ubuntu 8.10 and Mac OS X 10.5 will generate a SHA1 hash:
 
     $ slappasswd -s "secretsauce"
     {SSHA}6BjlvtSbVCL88li8IorkqMSofkLio58/
@@ -166,10 +173,11 @@ Set this by default in the attributes file, or on the node's entry in the webui.
 
 License & Authors
 -----------------
-- Author:: Joshua Timberman (<joshua@opscode.com>)
+- Author:: Joshua Timberman (<joshua@chef.io>)
+- Author:: Tim Smith (<tim@cozy.co>)
 
 ```text
-Copyright:: 2009, Opscode, Inc
+Copyright:: 2008-2015, Chef Software, Inc
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
