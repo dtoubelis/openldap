@@ -2,7 +2,7 @@
 # Cookbook Name:: openldap
 # Recipe:: client
 #
-# Copyright 2008-2009, Opscode, Inc.
+# Copyright 2008-2015, Chef Software, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,12 +17,12 @@
 # limitations under the License.
 #
 
-package "ldap-utils" do
-  action :upgrade
+package node['openldap']['packages']['client_pkg'] do
+  action node['openldap']['package_install_action']
 end
 
 directory node['openldap']['ssl_dir'] do
-  mode 00755
-  owner "root"
-  group "root"
+  mode '0755'
+  owner 'root'
+  group 'root'
 end
